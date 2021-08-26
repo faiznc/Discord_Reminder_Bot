@@ -1,22 +1,13 @@
+# Running on repl.it
+
 import discord
 import os
-# import requests
-# import json
-# import random
-# from replit import db
 from keep_alive import keep_alive
 from my_timer import start_timer
 
 client = discord.Client()
 
-token = os.environ['TOKEN']
-
-# def basic_handle_message(command,text):
-#   command.lower()
-#   print(command)
-#   await message.channel.send(parsed)
-
-
+token = os.environ['TOKEN'] # Repl.it's System environments
 
 @client.event
 async def on_ready():
@@ -30,17 +21,18 @@ async def on_message(message):
         return
 
     msg = message.content
-    if message.content.startswith("!"): # idk but it doesnt work
+
+    if message.content.startswith("!"):
       parsed = message.content[1:]
       parsed = parsed.lower()
       print(parsed)
 
-      #command list here...
+      #command list starts here...
       if parsed.startswith("test"):
         await message.channel.send("Test berhasil.")
 
       if parsed.startswith("set-timer"):
-          # harusnya !set-timer 13.50
+          # example !set-timer 13.50
           parsed = message.content[1:]
           parsed = parsed.lower()
           hh, mm = parsed[10:12], parsed[13:15]
