@@ -1,11 +1,9 @@
 import os
 import time
-# from keep_alive import keep_alive
+from keep_alive import keep_alive
 from discord.ext import commands, tasks
 import threading
 import my_scheduler as schd
-
-# def compare_time_in_db(start)
 
 bot = commands.Bot(
     command_prefix="!",  # Change to desired prefix
@@ -13,26 +11,21 @@ bot = commands.Bot(
 )
 
 # bot.author_id = 487258918465306634  # Change to your discord id!!!
-my_channel_id = 880235498218618893
+my_channel_id = int(os.environ.get("MY_CHANNEL_ID"))
+
 token = os.environ.get("TOKEN")
 
-#task once
+#my test channel id are = 880235498218618893
 
 
-@tasks.loop(seconds=1, count=1)
-async def slow_count():  # Simple func that run once
-    print("1x test")
-
-
-# @slow_count.after_loop
-# async def after_slow_count():
-#     print('done!')
-
-
-@tasks.loop(seconds=5
-            )  #basically a while true that always called every 5 seconds
-async def background_tasks():
-    print("Hello")
+@tasks.loop(seconds=60)  #Check every minute.
+async def background_checker():
+    print("Checking now (" + schd.get_now() + ").")
+    commands = schd.get_sent_now()
+    if len(commands) > 0:
+        channel = bot.get_channel(my_channel_id)
+        for the_text in commands:
+            await channel.send(the_text)
 
 
 @bot.event
@@ -41,22 +34,13 @@ async def on_ready():  # When the bot is ready
     print(bot.user)  # Prints the bot's username and identifier.
 
 
-@bot.command()
+@bot.command(brief='Ping the bot!')
 async def ping(ctx):
-    await ctx.send(
-        "pong!"
-    )  #simple command so that when you type "!ping" the bot will respond with "pong!"
+    await ctx.send("pong!")
 
 
-@bot.command()
-async def pings(ctx):
-    await ctx.send(
-        "pongs!"
-    )  #simple command so that when you type "!ping" the bot will respond with "pong!"
-
-
-@bot.command()
-async def new(ctx, timestamp, text_commands):
+@bot.command(brief='Add new schedule (Format : !new 12:00 theMessage)')
+async def add(ctx, timestamp, text_commands):
     response = schd.add_daily(timestamp, text_commands)
     print(response)
     if response == -1:
@@ -69,7 +53,7 @@ async def new(ctx, timestamp, text_commands):
         await ctx.send("Added on {} -> {}".format(timestamp, text_commands))
 
 
-@bot.command()
+@bot.command(brief='Show all schedule.')
 async def show(ctx):
     job_list = schd.get_raw_schedule()
     if len(job_list) < 1:
@@ -77,12 +61,12 @@ async def show(ctx):
     count = 1
     for x in job_list:
         sent_string = "(" + str(count) + ") " + schd.utc_to_gmt7(
-            x["timestamp"]) + "-" + x['command']
+            x["timestamp"]) + " - " + schd.remove_tag(x['command'])
         await ctx.send(sent_string)
         count += 1
 
 
-@bot.command()
+@bot.command(brief='Delete a schedule.')
 async def delete(ctx, index):
     try:
         index = int(index)
@@ -95,20 +79,11 @@ async def delete(ctx, index):
         await ctx.send("Index unavailable.")
 
 
-def simple_call():  #proof of concept - working
-    while True:
-        time.sleep(6)
-        slow_count.start()
-
-
-thread1 = threading.Thread(target=simple_call, daemon=True)
-thread1.start()
-
-
 def runBot():
     global token
-    # keep_alive()  # Starts a webserver to be pinged.
-    background_tasks.start()
+    keep_alive()  # Starts a webserver to be pinged.
+    # background_tasks.start()
+    background_checker.start()
     bot.run(token)
 
 
