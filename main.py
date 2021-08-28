@@ -78,6 +78,11 @@ async def delete(ctx, index):
     else:
         await ctx.send("Index unavailable.")
 
+@bot.command(brief='Test Get Channel ID')
+async def get_id(ctx,*, full_text):
+  print(full_text)
+  print(ctx.channel.id)
+
 
 def runBot():
     global token
