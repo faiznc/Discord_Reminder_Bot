@@ -1,25 +1,40 @@
 from datetime import datetime
+from replit import db
 
-job_list = []
-
-
-def get_now():
-    h = datetime.now().hour
-    m = datetime.now().minute
-    return "{}:{}".format(h, m)
+job_list = []  # Will be unused soon..
 
 
-def get_sent_now():  # get all text to send by comparing to recent time
-    response_list = []
+def get_now(with_second=False):
+    hh = datetime.now().hour
+    mm = datetime.now().minute
+    hh, mm = reformat_timestamp(hh, mm)
+    if with_second:
+        ss = datetime.now().second
+        return "{}:{}:{}".format(hh, mm, ss)
+    else:
+        return "{}:{}".format(hh, mm)
+
+
+def get_sent_now(
+):  # get all text and its channel to send by comparing to recent time
+    text_list = []
+    channel_list = []
     now = get_now()
     fmt = '%H:%M'
     job = ""
-    for x in job_list:
-        job = x['timestamp']
-        delta = datetime.strptime(job, fmt) - datetime.strptime(now, fmt)
-        if delta.total_seconds() == 0:
-            response_list.append(x['command'])
-    return response_list
+    channel_ids = db.keys()
+    for channel_id in channel_ids:
+        for schedule in db[channel_id]:
+            job = schedule['timestamp']
+            delta = datetime.strptime(job, fmt) - datetime.strptime(now, fmt)
+            if delta.total_seconds() == 0:
+                text_list.append(parse_text_command(schedule['command']))
+                channel_list.append(channel_id)
+    return text_list, channel_list
+
+
+def parse_text_command(text):  # convert @. to @. Used when schedule match.
+    return text.replace("@.", "@")
 
 
 def check_timestamp(timestamp):
@@ -62,8 +77,9 @@ def remove_tag(command):
     return command
 
 
-def add_daily(timestamp, commands):
-    global job_list
+def add_daily(channel_id, timestamp, commands):
+    channel_id = str(channel_id)
+    local_dict = []
     resp = check_timestamp(timestamp)
     if resp < 0:
         return resp
@@ -71,8 +87,20 @@ def add_daily(timestamp, commands):
     saved_time = gmt7_to_utc(timestamp)
     commands = parse_tag(commands)
     temp_dict = {'timestamp': saved_time, 'command': commands}
-    job_list.append(temp_dict)
+    if check_channel(channel_id) is True:
+        local_dict = db[channel_id]
+    local_dict.append(temp_dict)
+    db[channel_id] = local_dict
     return 1
+
+
+def check_channel(channel_id: str):
+    try:  # check if channel already exist
+        db[channel_id]
+        return True  # return 1 if channel exist
+    except:  #if does not exist, create empty channel dict
+        db[channel_id] = []
+        return False
 
 
 def utc_to_gmt7(timestamp):
@@ -80,6 +108,7 @@ def utc_to_gmt7(timestamp):
     hh = int(timestamp[:2])
     mm = int(timestamp[3:])
     hh = (hh + 7) % 24
+    hh, mm = reformat_timestamp(hh, mm)
     return "{}:{}".format(hh, mm)
 
 
@@ -88,10 +117,19 @@ def gmt7_to_utc(timestamp):
     hh = int(timestamp[:2])
     mm = int(timestamp[3:])
     hh = (int(hh) - 7) % 24
+    hh, mm = reformat_timestamp(hh, mm)
     return "{}:{}".format(hh, mm)
 
 
-def get_schedule():
+def reformat_timestamp(hh, mm):
+    if mm < 10:
+        mm = "0" + str(mm)
+    if hh < 10:
+        hh = "0" + str(hh)
+    return hh, mm
+
+
+def get_schedule():  #Local to this file
     global job_list
     count = 1
     for x in job_list:
@@ -101,41 +139,61 @@ def get_schedule():
         count += 1
 
 
-def get_raw_schedule():
-    global job_list
-    return job_list
+def get_raw_schedule(channel_id):
+    channel_id = str(channel_id)
+    channel_jobs = db[
+        channel_id]  #add exception ketika blum ada jadwal / channel di db
+    return channel_jobs
 
 
-def del_daily(index):
+def del_daily(channel_id, index):
     assert type(index) == int
+    channel_id = str(channel_id)
     try:
-        job_list.pop(index - 1)
-        print("--- Deleted schedule ->", index, "---")
+        channel_jobs = db[channel_id]
+    except:
+        return -1  # Channel not found in db.
+    try:
+        channel_jobs.pop(index - 1)
+        # print("--- Deleted schedule ->", index, "---")
+        db[channel_id] = channel_jobs
         return 1  # success deletion
     except:
         return -1  # delete failed
 
 
-# get_job_env()
+def del_all_schedule(channel_id):
+    channel_id = str(channel_id)
+    try:
+        del db[channel_id]
+        return True  # channel id deleted.
+    except:
+        return False  # channel id not found.
 
-# # def edit_daily () # Not implemented yet.
-# # #examples...
-# add_daily("18.47", "!halo")
-# add_daily("17.18", "Test")
 
-# print(job_list)
+def developer_see_all_schedule():
+    keys = db.keys()
+    print(keys)
 
-# get_schedule()
+    for x in keys:
+        print(db[x])
 
-# # del_daily(1)
-# # get_schedule()
+    x, y = get_sent_now()
+    print(x)
+    print(y)
 
-# # print("now UTC=", get_now())
-# print("now GMT+7=", utc_to_gmt7(get_now()))
 
-# print(get_sent_now())
-
-# print("Last------------")
-# get_job_env()
-
-# set_job_to_env()
+def see_all():
+    channel_ids = db.keys()
+    for channel_id in channel_ids:
+        job_list = get_raw_schedule(channel_id)
+        print("--- ( ID", channel_id, ") ---")
+        count = 1
+        if len(job_list) < 1:
+            print("(No schedule.)")
+        else:
+            for x in job_list:
+                sent_string = "(" + str(count) + ") " + utc_to_gmt7(
+                    x["timestamp"]) + " - " + remove_tag(x['command'])
+                print(sent_string)
+                count += 1
