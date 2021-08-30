@@ -16,7 +16,7 @@ bot = commands.Bot(
 token = os.environ.get("TOKEN")
 
 
-@tasks.loop(seconds=60)  #Check every minute.
+@tasks.loop(seconds=60)  #Check for schedule every minute.
 async def background_checker():
     print("Checking now (" + schd.get_now(with_second=True) + ").")
     commands, channels = schd.get_sent_now()
@@ -28,13 +28,13 @@ async def background_checker():
 
 @bot.event
 async def on_ready():  # When the bot is ready
-    print("I'm in")
+    print("Bot is running.")
     print(bot.user)  # Prints the bot's username and identifier.
 
 
 @bot.command(brief='Ping the bot!')
 async def ping(ctx):
-    await ctx.send("Bot is active!")
+    await ctx.send("Reminds! is active!")
 
 
 @bot.command(
